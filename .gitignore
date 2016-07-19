@@ -1,0 +1,6 @@
+**/lib/
+*.lps
+*.db
+*.cgi
+*.exe
+.idea
