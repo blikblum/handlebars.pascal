@@ -427,7 +427,10 @@ var
 begin
   Result := THandlebarsCommentStatement.Create;
   Str := FScanner.CurTokenString;
-  Str := Copy(Str, 4, Length(Str) - 5);
+  if Pos('--', Str) = 4 then
+    Str := Copy(Str, 6, Length(Str) - 9)
+  else
+    Str := Copy(Str, 4, Length(Str) - 5);
   Result.FValue := Str;
   FScanner.FetchToken;
 end;

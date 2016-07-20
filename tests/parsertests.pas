@@ -823,6 +823,7 @@ end;
 procedure TParserTests.Comment;
 begin
   CheckEquals('{{! '' this is a comment '' }}\n', ASTFor('{{! this is a comment }}'));
+  CheckEquals('{{! '' this is a comment '' }}\n', ASTFor('{{!-- this is a comment --}}'));
 end;
 
 procedure TParserTests.MultiLineComment;
