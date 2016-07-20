@@ -218,6 +218,8 @@ type
     property Value: String read FValue;
   end;
 
+  { THandlebarsCommentStatement }
+
   THandlebarsCommentStatement = class(THandlebarsStatement)
   private
     FValue: String;
@@ -316,6 +318,7 @@ type
   private
     FScanner: THandlebarsScanner;
     procedure ParseCloseBlock(const OpenName: String);
+    function ParseComment: THandlebarsCommentStatement;
     function ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
     function ParseMustache: THandlebarsMustacheStatement;
     procedure ParseParamsAndHash(Params: TFPObjectList; out Hash: THandlebarsHash);
@@ -416,6 +419,17 @@ begin
     raise EHandlebarsParse.CreateFmt('%s doesn''t match %s', [OpenName, CloseName]);
   if FScanner.CurToken <> tkClose then
     UnexpectedToken([tkClose]);
+end;
+
+function THandlebarsParser.ParseComment: THandlebarsCommentStatement;
+var
+  Str: String;
+begin
+  Result := THandlebarsCommentStatement.Create;
+  Str := FScanner.CurTokenString;
+  Str := Copy(Str, 4, Length(Str) - 5);
+  Result.FValue := Str;
+  FScanner.FetchToken;
 end;
 
 function THandlebarsParser.ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
@@ -635,6 +649,8 @@ begin
       end;
     tkOpenPartialBlock:
       Result := ParsePartialBlock;
+    tkComment:
+      Result := ParseComment;
   end;
 end;
 
