@@ -13,6 +13,9 @@ type
   { TParserTests }
 
   TParserTests = class(TTestCase)
+  private
+    procedure CheckException(const Template: String; const AExceptionClass: TClass;
+      const ExceptionMsg: String = ''; const ErrorMsg: string = '');
   published
     procedure SimpleMustaches;
     procedure SimpleMustachesWithData;
@@ -639,6 +642,35 @@ end;
 
 { TParserTests }
 
+procedure TParserTests.CheckException(const Template: String; const AExceptionClass: TClass;
+  const ExceptionMsg: String; const ErrorMsg: string);
+var
+  LExceptionClass: TClass;
+  Parser: THandlebarsParser;
+begin
+  LExceptionClass := AExceptionClass;
+  try
+    Parser := THandlebarsParser.Create(Template);
+    Parser.Parse.Free;
+    Parser.Destroy;
+  except
+    on E:Exception do
+    begin
+      OnCheckCalled;
+      if not Assigned(LExceptionClass) then
+        raise
+      else if not E.ClassType.InheritsFrom(LExceptionClass) then
+        FailNotEquals(AExceptionClass.ClassName, E.ClassName, ErrorMsg, CallerAddr)
+      else if (ExceptionMsg <> '') and (E.Message <> ExceptionMsg) then
+        FailNotEquals(ExceptionMsg, E.Message, ErrorMsg, CallerAddr)
+      else
+        LExceptionClass := nil;
+    end;
+  end;
+  if Assigned(LExceptionClass) then
+    FailNotEquals(AExceptionClass.ClassName, 'nothing', ErrorMsg, CallerAddr)
+end;
+
 procedure TParserTests.SimpleMustaches;
 begin
   CheckEquals('{{ NUMBER{123} [] }}\n', ASTFor('{{123}}'));
@@ -780,9 +812,7 @@ end;
 
 procedure TParserTests.BlockMismatch;
 begin
-  //shouldThrow(function() {
-  //  ASTFor('{{#> goodbyes}}{{/hellos}}');
-  //}, Error, (/goodbyes doesn't match hellos/));
+  CheckException('{{#> goodbyes}}{{/hellos}}', EHandlebarsParse, 'goodbyes doesn''t match hellos');
 end;
 
 procedure TParserTests.PartialBlockWithArguments;
@@ -841,9 +871,7 @@ end;
 
 procedure TParserTests.ThrowsOnOldInvert;
 begin
-  //shouldThrow(function() {
-  //      ASTFor('{{else foo}}bar{{/foo}}');
-  //    }, Error);
+  CheckException('{{else foo}}bar{{/foo}}', Exception);
 end;
 
 procedure TParserTests.BlockWithParams;
@@ -863,62 +891,32 @@ end;
 
 procedure TParserTests.ParseErrors;
 begin
-  //shouldThrow(function() {
-  //  ASTFor('foo{{^}}bar');
-  //}, Error, /Parse error on line 1/);
-  //shouldThrow(function() {
-  //  ASTFor('{{foo}');
-  //}, Error, /Parse error on line 1/);
-  //shouldThrow(function() {
-  //  ASTFor('{{foo &}}');
-  //}, Error, /Parse error on line 1/);
-  //shouldThrow(function() {
-  //  ASTFor('{{#goodbyes}}{{/hellos}}');
-  //}, Error, /goodbyes doesn't match hellos/);
-  //
-  //shouldThrow(function() {
-  //  ASTFor('{{{{goodbyes}}}} {{{{/hellos}}}}');
-  //}, Error, /goodbyes doesn't match hellos/);
+  CheckException('foo{{^}}bar', EHandlebarsParse, 'Parse error on line 1');
+  CheckException('{{foo}', EHandlebarsParse, 'Parse error on line 1');
+  CheckException('{{foo &}}', EHandlebarsParse, 'Parse error on line 1');
+  CheckException('{{{{goodbyes}}}} {{{{/hellos}}}}', EHandlebarsParse, 'goodbyes doesn''t match hellos');
 end;
 
 procedure TParserTests.InvalidPaths;
 begin
-  //shouldThrow(function() {
-  //  ASTFor('{{foo/../bar}}');
-  //}, Error, /Invalid path: foo\/\.\. - 1:2/);
-  //shouldThrow(function() {
-  //  ASTFor('{{foo/./bar}}');
-  //}, Error, /Invalid path: foo\/\. - 1:2/);
-  //shouldThrow(function() {
-  //  ASTFor('{{foo/this/bar}}');
-  //}, Error, /Invalid path: foo\/this - 1:2/);
+  CheckException('{{foo/../bar}}', EHandlebarsParse, 'Invalid path: foo/.. - 1:2');
+  CheckException('{{foo/./bar}}', EHandlebarsParse, 'Invalid path: foo/. - 1:2');
+  CheckException('{{foo/this/bar}}', EHandlebarsParse, 'Invalid path: foo/this - 1:2');
 end;
 
 procedure TParserTests.ReportLineNumbers;
 begin
-//  shouldThrow(function() {
-//    ASTFor('hello\nmy\n{{foo}');
-//  }, Error, /Parse error on line 3/);
-//  shouldThrow(function() {
-//    ASTFor('hello\n\nmy\n\n{{foo}');
-//  }, Error, /Parse error on line 5/);
-//});
-//
-//it('knows how to report the correct line number in errors when the first character is a newline', function() {
-//  shouldThrow(function() {
-//    ASTFor('\n\nhello\n\nmy\n\n{{foo}');
-//  }, Error, /Parse error on line 7/);
+  CheckException('hello'+LineEnding+'my'+LineEnding+'{{foo}', EHandlebarsParse, 'Parse error on line 3');
+  CheckException('hello'+LineEnding+LineEnding+'my'+LineEnding+LineEnding+'{{foo}', EHandlebarsParse, 'Parse error on line 5');
+  CheckException(LineEnding+LineEnding+'hello'+LineEnding+LineEnding+
+    'my'+LineEnding+LineEnding+'{{foo}', EHandlebarsParse, 'Parse error on line 7');
 end;
 
 procedure TParserTests.Directives;
 begin
   CheckEquals('DIRECTIVE BLOCK:\n  PATH:foo []\n  PROGRAM:\n', ASTFor('{{#* foo}}{{/foo}}'));
   CheckEquals('{{ DIRECTIVE PATH:foo [] }}\n', ASTFor('{{* foo}}'));
-  //it('should fail if directives have inverse', function() {
-  //  shouldThrow(function() {
-  //    ASTFor('{{#* foo}}{{^}}{{/foo}}');
-  //  }, Error, /Unexpected inverse/);
-  //});
+  CheckException('{{#* foo}}{{^}}{{/foo}}', EHandlebarsParse, 'Unexpected inverse');
 end;
 
 initialization
