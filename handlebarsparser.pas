@@ -310,6 +310,8 @@ type
     FScanner: THandlebarsScanner;
     function ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
     function ParseMustache: THandlebarsMustacheStatement;
+    procedure ParseParamsAndHash(Params: TFPObjectList; out Hash: THandlebarsHash);
+    function ParsePartial: THandlebarsPartialStatement;
     function ParsePath(IsData: Boolean): THandlebarsPathExpression;
     function ParseProgram(BreakToken: THandlebarsToken): THandlebarsProgram;
     function ParseStatement: THandlebarsStatement;
@@ -407,30 +409,62 @@ begin
     FScanner.FetchToken;
 end;
 
+{
+mustache
+  : OPEN helperName param* hash? CLOSE
+  | OPEN_UNESCAPED helperName param* hash? CLOSE_UNESCAPED;
+
+helperName
+  : path
+  | dataName
+  | STRING
+  | NUMBER
+  | BOOLEAN
+  | UNDEFINED
+  | NULL
+  ;
+dataName
+  : DATA pathSegments
+  ;
+
+path
+  : pathSegments
+  ;
+
+pathSegments
+  : pathSegments SEP ID
+  | ID
+  ;
+}
+
 function THandlebarsParser.ParseMustache: THandlebarsMustacheStatement;
-var
-  PrevTokenString: String;
-  Hash: THandlebarsHash;
-  Expression: THandlebarsExpression;
 begin
   Result := THandlebarsMustacheStatement.Create;
   FScanner.FetchToken;
   Result.FPath := ParseExpression(False);
+  ParseParamsAndHash(Result.FParams, Result.FHash);
+end;
+
+procedure THandlebarsParser.ParseParamsAndHash(Params: TFPObjectList; out Hash: THandlebarsHash);
+var
+  PrevTokenString: String;
+  Expression: THandlebarsExpression;
+begin
   //params
   while FScanner.CurToken <> tkClose do
   begin
     PrevTokenString := FScanner.CurTokenString;
     Expression := ParseExpression(True);
     if FScanner.CurToken <> tkEquals then
-      Result.FParams.Add(Expression)
+      Params.Add(Expression)
     else
     begin
       //discard previous expression
       Expression.Destroy;
-      Result.FHash := THandlebarsHash.Create;
+      Hash := THandlebarsHash.Create;
       FScanner.FetchToken;
       Expression := ParseExpression(True);
-      Result.FHash.AddPair(THandlebarsHashPair.Create(PrevTokenString, Expression));
+      Hash.AddPair(THandlebarsHashPair.Create(PrevTokenString, Expression));
       //hash
       while FScanner.CurToken = tkId do
       begin
@@ -439,13 +473,28 @@ begin
         begin
           FScanner.FetchToken;
           Expression := ParseExpression(True);
-          Result.FHash.AddPair(THandlebarsHashPair.Create(PrevTokenString, Expression));
+          Hash.AddPair(THandlebarsHashPair.Create(PrevTokenString, Expression));
         end
         else
           UnexpectedToken([tkEquals]);
       end;
     end;
   end;
+end;
+
+{
+partial
+  : OPEN_PARTIAL partialName param* hash? CLOSE;
+
+partialName
+    : helperName -> $1
+    | sexpr -> $1
+    ;
+}
+
+function THandlebarsParser.ParsePartial: THandlebarsPartialStatement;
+begin
+
 end;
 
 function THandlebarsParser.ParsePath(IsData: Boolean): THandlebarsPathExpression;
@@ -502,6 +551,10 @@ begin
     tkOpen, tkOpenUnescaped:
       begin
         Result := ParseMustache;
+      end;
+    tkOpenPartial:
+      begin
+
       end;
   end;
 end;
