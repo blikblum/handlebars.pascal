@@ -197,6 +197,8 @@ type
     function GetParamCount: Integer;
     function GetParams(Index: Integer): THandlebarsExpression;
   public
+    constructor Create;
+    destructor Destroy; override;
     property Indent: String read FIndent;
     property Hash: THandlebarsHash read FHash;
     property Name: THandlebarsExpression read FName;
@@ -313,10 +315,12 @@ type
   THandlebarsParser = class
   private
     FScanner: THandlebarsScanner;
+    procedure ParseCloseBlock(const OpenName: String);
     function ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
     function ParseMustache: THandlebarsMustacheStatement;
     procedure ParseParamsAndHash(Params: TFPObjectList; out Hash: THandlebarsHash);
     function ParsePartial: THandlebarsPartialStatement;
+    function ParsePartialBlock: THandlebarsPartialBlockStatement;
     function ParsePath(IsData: Boolean): THandlebarsPathExpression;
     function ParseProgram(BreakToken: THandlebarsToken): THandlebarsProgram;
     function ParseStatement: THandlebarsStatement;
@@ -381,6 +385,37 @@ end;
 destructor THandlebarsParser.Destroy;
 begin
   FScanner.Destroy;
+end;
+
+{
+closeBlock
+  : OPEN_ENDBLOCK helperName CLOSE -> {path: $2, strip: yy.stripFlags($1, $3)}
+  ;
+}
+
+procedure THandlebarsParser.ParseCloseBlock(const OpenName: String);
+var
+  Expression: THandlebarsExpression;
+  CloseName: String;
+begin
+  FScanner.FetchToken;
+  Expression := ParseExpression(True);
+  case Expression.NodeType of
+    'PathExpression':
+      CloseName := THandlebarsPathExpression(Expression).Original;
+    'StringLiteral':
+      CloseName := THandlebarsStringLiteral(Expression).Original;
+    'NumberLiteral':
+      CloseName := FloatToStr(THandlebarsNumberLiteral(Expression).Original);
+    'BooleanLiteral':
+      CloseName := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Expression).Original, True));
+  else
+    CloseName := '';
+  end;
+  if CloseName <> OpenName then
+    raise EHandlebarsParse.CreateFmt('%s does not match %s', [OpenName, CloseName]);
+  if FScanner.CurToken <> tkClose then
+    UnexpectedToken([tkClose]);
 end;
 
 function THandlebarsParser.ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
@@ -505,6 +540,37 @@ begin
   ParseParamsAndHash(Result.FParams, Result.FHash);
 end;
 
+{
+partialBlock
+  : openPartialBlock program closeBlock -> yy.preparePartialBlock($1, $2, $3, @$)
+  ;
+openPartialBlock
+  : OPEN_PARTIAL_BLOCK partialName param* hash? CLOSE -> { path: $2, params: $3, hash: $4, strip: yy.stripFlags($1, $5) }
+  ;
+}
+
+function THandlebarsParser.ParsePartialBlock: THandlebarsPartialBlockStatement;
+var
+  OpenName: String;
+begin
+  Result := THandlebarsPartialBlockStatement.Create;
+  FScanner.FetchToken;
+  Result.FName := ParseExpression(True);
+  ParseParamsAndHash(Result.FParams, Result.FHash);
+  case Result.FName.NodeType of
+    'PathExpression':
+      OpenName := THandlebarsPathExpression(Result.FName).Original;
+    'StringLiteral':
+      OpenName := THandlebarsStringLiteral(Result.FName).Original;
+    'NumberLiteral':
+      OpenName := FloatToStr(THandlebarsNumberLiteral(Result.FName).Original);
+    'BooleanLiteral':
+      OpenName := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Result.FName).Original, True));
+  end;
+  Result.FProgram := ParseProgram(tkOpenEndBlock);
+  ParseCloseBlock(OpenName);
+end;
+
 function THandlebarsParser.ParsePath(IsData: Boolean): THandlebarsPathExpression;
 var
   PartCount: Integer;
@@ -567,6 +633,8 @@ begin
       begin
         Result := ParsePartial;
       end;
+    tkOpenPartialBlock:
+      Result := ParsePartialBlock;
   end;
 end;
 
@@ -674,6 +742,17 @@ end;
 function THandlebarsPartialBlockStatement.GetParams(Index: Integer): THandlebarsExpression;
 begin
   Result := THandlebarsExpression(FParams[Index]);
+end;
+
+constructor THandlebarsPartialBlockStatement.Create;
+begin
+  FParams := TFPObjectList.Create;
+end;
+
+destructor THandlebarsPartialBlockStatement.Destroy;
+begin
+  FParams.Destroy;
+  inherited Destroy;
 end;
 
 { THandlebarsPartialStatement }

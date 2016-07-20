@@ -498,7 +498,7 @@ end;
 
 function TASTPrinter.Pad(const Str: String): String;
 begin
-  Result := PadLeft(Str, FPadding * 2) + '\n';
+  Result := StringOfChar(' ', FPadding * 2) + Str + '\n';
 end;
 
 function TASTPrinter.PathExpressionToStr(Path: THandlebarsPathExpression): String;
@@ -520,9 +520,9 @@ begin
   if (Partial.Hash <> nil)  then
     content += ' ' + NodeToStr(Partial.Hash);
 
-  content += ' ' + Pad('PROGRAM:');
+  Content += ' ' + Pad('PROGRAM:');
   Inc(FPadding);
-  Content += NodeToStr(Partial.TheProgram);
+  Content += ProgramToStr(Partial.TheProgram);
   Dec(FPadding);
 
   Result  := Pad('{{> ' + Content + ' }}');
