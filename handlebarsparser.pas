@@ -413,7 +413,7 @@ begin
     CloseName := '';
   end;
   if CloseName <> OpenName then
-    raise EHandlebarsParse.CreateFmt('%s does not match %s', [OpenName, CloseName]);
+    raise EHandlebarsParse.CreateFmt('%s doesn''t match %s', [OpenName, CloseName]);
   if FScanner.CurToken <> tkClose then
     UnexpectedToken([tkClose]);
 end;
