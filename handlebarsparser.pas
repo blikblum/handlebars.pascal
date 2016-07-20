@@ -81,6 +81,7 @@ type
   public
     constructor Create(const AValue: String);
     property Value: String read FValue;
+    property Original: String read FOriginal;
   end;
 
   { THandlebarsBooleanLiteral }
@@ -91,6 +92,7 @@ type
     FOriginal: Boolean;
   public
     constructor Create(const AValue: String);
+    property Original: Boolean read FOriginal;
     property Value: Boolean read FValue;
   end;
 
@@ -102,6 +104,7 @@ type
     FOriginal: Double;
   public
     constructor Create(const ValueStr: String);
+    property Original: Double read FOriginal;
     property Value: Double read FValue;
   end;
 
@@ -171,6 +174,8 @@ type
     function GetParamCount: Integer;
     function GetParams(Index: Integer): THandlebarsExpression;
   public
+    constructor Create;
+    destructor Destroy; override;
     property Indent: String read FIndent;
     property Hash: THandlebarsHash read FHash;
     property Name: THandlebarsExpression read FName;
@@ -494,7 +499,10 @@ partialName
 
 function THandlebarsParser.ParsePartial: THandlebarsPartialStatement;
 begin
-
+  Result := THandlebarsPartialStatement.Create;
+  FScanner.FetchToken;
+  Result.FName := ParseExpression(True);
+  ParseParamsAndHash(Result.FParams, Result.FHash);
 end;
 
 function THandlebarsParser.ParsePath(IsData: Boolean): THandlebarsPathExpression;
@@ -504,7 +512,9 @@ var
 begin
   Result := THandlebarsPathExpression.Create;
   Result.FData := IsData;
+  Result.FOriginal := '';
   repeat
+    Result.FOriginal += FScanner.CurTokenString;
     Part := FScanner.CurTokenString;
     if Part <> 'this' then
     begin
@@ -519,6 +529,7 @@ begin
     end;
     if FScanner.FetchToken = tkSep then
     begin
+      Result.FOriginal += FScanner.CurTokenString;
       if FScanner.FetchToken <> tkId then
         UnexpectedToken([tkId]);
     end
@@ -554,7 +565,7 @@ begin
       end;
     tkOpenPartial:
       begin
-
+        Result := ParsePartial;
       end;
   end;
 end;
@@ -675,6 +686,18 @@ end;
 function THandlebarsPartialStatement.GetParams(Index: Integer): THandlebarsExpression;
 begin
   Result := THandlebarsExpression(FParams[Index]);
+end;
+
+constructor THandlebarsPartialStatement.Create;
+begin
+  //todo: create on demand
+  FParams := TFPObjectList.Create;
+end;
+
+destructor THandlebarsPartialStatement.Destroy;
+begin
+  FParams.Destroy;
+  inherited Destroy;
 end;
 
 { THandlebarsBlockStatement }

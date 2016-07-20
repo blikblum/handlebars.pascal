@@ -167,6 +167,10 @@ type
 
   TASTPrinter = record
     FPadding: Integer;
+    //utils
+    function GetOriginal(Node: THandlebarsNode): String;
+    function Pad(const Str: String): String;
+    //converts
     function BooleanToStr(Bool: THandlebarsBooleanLiteral): String;
     function BlockToStr(Block: THandlebarsBlockStatement): String;
     function CommentToStr(Comment: THandlebarsCommentStatement): String;
@@ -175,7 +179,6 @@ type
     function DecoratorBlockToStr(Block: THandlebarsDecoratorBlock): String;
     function HashPairToStr(Pair: THandlebarsHashPair): String;
     function HashToStr(Hash: THandlebarsHash): String;
-    function Pad(const Str: String): String;
     function PathExpressionToStr(Path: THandlebarsPathExpression): String;
     function PartialBlockToStr(Partial: THandlebarsPartialBlockStatement): String;
     function PartialToStr(Partial: THandlebarsPartialStatement): String;
@@ -477,6 +480,22 @@ begin
   Result := 'HASH{' + Join(Pairs, ', ') + '}';
 end;
 
+function TASTPrinter.GetOriginal(Node: THandlebarsNode): String;
+begin
+  case Node.NodeType of
+    'PathExpression':
+      Result := THandlebarsPathExpression(Node).Original;
+    'StringLiteral':
+      Result := THandlebarsStringLiteral(Node).Original;
+    'NumberLiteral':
+      Result := FloatToStr(THandlebarsNumberLiteral(Node).Original);
+    'BooleanLiteral':
+      Result := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Node).Original, True));
+  else
+    Result := '';
+  end;
+end;
+
 function TASTPrinter.Pad(const Str: String): String;
 begin
   Result := PadLeft(Str, FPadding * 2) + '\n';
@@ -492,14 +511,9 @@ end;
 
 function TASTPrinter.PartialBlockToStr(Partial: THandlebarsPartialBlockStatement): String;
 var
-  Content, Original: String;
+  Content: String;
 begin
-  if Partial.Name is THandlebarsPathExpression then
-    Original := THandlebarsPathExpression(Partial.Name).Original
-  else
-    Original := '';
-
-  Content := 'PARTIAL BLOCK:' + Original;
+  Content := 'PARTIAL BLOCK:' + GetOriginal(Partial.Name);
   if (Partial.ParamCount > 0) then
     Content += ' ' + NodeToStr(Partial.Params[0]);
 
@@ -516,13 +530,9 @@ end;
 
 function TASTPrinter.PartialToStr(Partial: THandlebarsPartialStatement): String;
 var
-  Content, Original: String;
+  Content: String;
 begin
-  if Partial.Name is THandlebarsPathExpression then
-    Original := THandlebarsPathExpression(Partial.Name).Original
-  else
-    Original := '';
-  Content := 'PARTIAL:' + Original;
+  Content := 'PARTIAL:' + GetOriginal(Partial.Name);
   if Partial.ParamCount > 0  then
     Content += ' ' + NodeToStr(Partial.Params[0]);
 
