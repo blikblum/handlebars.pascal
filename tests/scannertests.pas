@@ -524,6 +524,11 @@ begin
   CreateTokens('foo {{!-- this is a'+LineEnding+'{{comment}}'+LineEnding+'--}} bar {{ baz }}');
   CheckEquals([tkCONTENT, tkCOMMENT, tkCONTENT, tkOPEN, tkID, tkCLOSE], FTokens.Values);
   CheckEquals(tkCOMMENT, '{{!-- this is a'+LineEnding+'{{comment}}'+LineEnding+'--}}', FTokens[1]);
+
+  CreateTokens('{{! this is {{a}} content }}');
+  CheckEquals([tkComment, tkCONTENT], FTokens.Values);
+  CheckEquals(tkComment, '{{! this is {{a}}', FTokens[0]);
+  CheckEquals(tkContent, ' content }}', FTokens[1]);
 end;
 
 procedure TScannerTests.SimpleBlock;

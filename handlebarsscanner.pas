@@ -114,11 +114,13 @@ end;
 procedure THandlebarsScanner.ScanComment;
 var
   TokenStart: PChar;
-  SectionLength, StrOffset, InnerMustacheLevel: Integer;
-
+  SectionLength, StrOffset: Integer;
+  IsDoubleDash, EndOfComment: Boolean;
 begin
+  //todo: handlebars.js returns the token content with the mustaches and later removes them at parsing.
+  //seems a limitation of tokenizer. We don't have this issue and the code could be cleaned a bit
   TokenStart := TokenStr;
-  InnerMustacheLevel := 0;
+  IsDoubleDash := (TokenStr[3] = '-') and (TokenStr[4] = '-');
   StrOffset := 0;
   while True do
   begin
@@ -137,20 +139,20 @@ begin
       TokenStart := TokenStr;
       Inc(StrOffset, SectionLength + Length(LineEnding));
     end;
-    if (TokenStr[0] = '{') and (TokenStr[1] = '{') then
-      Inc(InnerMustacheLevel);
-    if (TokenStr[0] = '}') and (TokenStr[1] = '}') then
+    if IsDoubleDash then
+      EndOfComment := (TokenStr[0] = '-') and (TokenStr[1] = '-') and (TokenStr[2] = '}') and (TokenStr[3] = '}')
+    else
+      EndOfComment := (TokenStr[0] = '}') and (TokenStr[1] = '}');
+    if EndOfComment then
     begin
-      if InnerMustacheLevel = 0 then
-      begin
-        Inc(TokenStr, 2);
-        SectionLength := TokenStr - TokenStart;
-        SetLength(FCurTokenString, StrOffset + SectionLength);
-        Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
-        Break;
-      end
+      if IsDoubleDash then
+        Inc(TokenStr, 4)
       else
-        Dec(InnerMustacheLevel);
+        Inc(TokenStr, 2);
+      SectionLength := TokenStr - TokenStart;
+      SetLength(FCurTokenString, StrOffset + SectionLength);
+      Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
+      Break;
     end;
   end;
 end;
