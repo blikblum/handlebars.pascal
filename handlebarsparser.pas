@@ -635,25 +635,20 @@ begin
 end;
 
 function THandlebarsParser.ParseStatement: THandlebarsStatement;
-var
-  T: THandlebarsToken;
 begin
-  T := FScanner.CurToken;
-  case T of
+  case FScanner.CurToken of
     tkContent:
       Result := THandlebarsContentStatement.Create(FScanner.CurTokenString);
     tkOpen, tkOpenUnescaped:
-      begin
-        Result := ParseMustache;
-      end;
+      Result := ParseMustache;
     tkOpenPartial:
-      begin
-        Result := ParsePartial;
-      end;
+      Result := ParsePartial;
     tkOpenPartialBlock:
       Result := ParsePartialBlock;
     tkComment:
       Result := ParseComment;
+  else
+    UnexpectedToken([tkContent, tkOpen, tkOpenUnescaped, tkOpenPartial, tkOpenPartialBlock, tkComment]);
   end;
 end;
 
