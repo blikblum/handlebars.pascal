@@ -319,7 +319,7 @@ type
   THandlebarsParser = class
   private
     FScanner: THandlebarsScanner;
-    function ParseBlock: THandlebarsBlockStatement;
+    function ParseBlock(ExpectsClose: Boolean = True; Inverted: Boolean = False): THandlebarsBlockStatement;
     function ParseBlockParams: TStringArray;
     procedure ParseCloseBlock(const OpenName: String);
     function ParseComment: THandlebarsCommentStatement;
@@ -417,12 +417,15 @@ inverseAndProgram
   ;
 }
 
-function THandlebarsParser.ParseBlock: THandlebarsBlockStatement;
+function THandlebarsParser.ParseBlock(ExpectsClose: Boolean; Inverted: Boolean): THandlebarsBlockStatement;
 var
   OpenName: String;
   BlockParams: TStringArray;
+  TheProgram, InverseProgram: THandlebarsProgram;
 begin
   Result := THandlebarsBlockStatement.Create;
+  TheProgram := nil;
+  InverseProgram := nil;
   FScanner.FetchToken;
   Result.FPath := ParseExpression(False);
   ParseParamsAndHash(Result.FParams, Result.FHash);
@@ -440,11 +443,23 @@ begin
     'BooleanLiteral':
       OpenName := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Result.FPath).Original, True));
   end;
-  Result.FProgram := ParseProgram([tkOpenEndBlock, tkInverse, tkOpenInverseChain]);
-  Result.FProgram.FBlockParams := BlockParams;
+  TheProgram := ParseProgram([tkOpenEndBlock, tkInverse, tkOpenInverseChain]);
+  TheProgram.FBlockParams := BlockParams;
   if FScanner.CurToken in [tkInverse, tkOpenInverseChain] then
-    Result.FInverse := ParseProgram([tkOpenEndBlock], FScanner.CurToken <> tkOpenInverseChain);
-  ParseCloseBlock(OpenName);
+    InverseProgram := ParseProgram([tkOpenEndBlock], FScanner.CurToken <> tkOpenInverseChain);
+
+  if not Inverted then
+  begin
+    Result.FProgram := TheProgram;
+    Result.FInverse := InverseProgram;
+  end
+  else
+  begin
+    Result.FInverse := TheProgram;
+    Result.FProgram := InverseProgram;
+  end;
+  if ExpectsClose then
+    ParseCloseBlock(OpenName);
 end;
 
 function THandlebarsParser.ParseBlockParams: TStringArray;
@@ -707,7 +722,11 @@ begin
   while not (T in BreakTokens) do
   begin
     Result.FBody.Add(ParseStatement);
-    T := FScanner.FetchToken;
+    //todo: make ParseStatement consistent, always let at next token or current token
+    if T = tkOpenInverseChain then
+      T := FScanner.CurToken
+    else
+      T := FScanner.FetchToken;
   end;
 end;
 
@@ -724,10 +743,15 @@ begin
       Result := ParsePartialBlock;
     tkComment:
       Result := ParseComment;
-    tkOpenBlock, tkOpenInverseChain:
+    tkOpenBlock:
       Result := ParseBlock;
+    tkOpenInverseChain:
+      Result := ParseBlock(False);
+    tkOpenInverse:
+      Result := ParseBlock(True, True);
   else
-    UnexpectedToken([tkContent, tkOpen, tkOpenUnescaped, tkOpenPartial, tkOpenPartialBlock, tkComment]);
+    UnexpectedToken([tkContent, tkOpen, tkOpenUnescaped, tkOpenPartial, tkOpenPartialBlock,
+      tkComment, tkOpenInverse, tkOpenInverseChain]);
   end;
 end;
 
