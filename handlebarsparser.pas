@@ -143,7 +143,7 @@ type
 
   THandlebarsBlockStatement = class(THandlebarsStatement)
   private
-    FPath: THandlebarsPathExpression;
+    FPath: THandlebarsExpression; //PathExpression | Literal
     FParams: TFPObjectList; //[ Expression ];
     FHash: THandlebarsHash;
     FProgram: THandlebarsProgram;
@@ -154,11 +154,13 @@ type
     function GetParamCount: Integer;
     function GetParams(Index: Integer): THandlebarsExpression;
   public
+    constructor Create;
+    destructor Destroy; override;
     property Hash: THandlebarsHash read FHash;
     property Inverse: THandlebarsProgram read FInverse;
     property Params[Index: Integer]: THandlebarsExpression read GetParams;
     property ParamCount: Integer read GetParamCount;
-    property Path: THandlebarsPathExpression read FPath;
+    property Path: THandlebarsExpression read FPath;
     property TheProgram: THandlebarsProgram read FProgram;
   end;
 
@@ -317,6 +319,8 @@ type
   THandlebarsParser = class
   private
     FScanner: THandlebarsScanner;
+    function ParseBlock: THandlebarsBlockStatement;
+    function ParseBlockParams: TStringArray;
     procedure ParseCloseBlock(const OpenName: String);
     function ParseComment: THandlebarsCommentStatement;
     function ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
@@ -325,7 +329,7 @@ type
     function ParsePartial: THandlebarsPartialStatement;
     function ParsePartialBlock: THandlebarsPartialBlockStatement;
     function ParsePath(IsData: Boolean): THandlebarsPathExpression;
-    function ParseProgram(BreakToken: THandlebarsToken): THandlebarsProgram;
+    function ParseProgram(BreakTokens: THandlebarsTokens; DoFetchToken: Boolean = True): THandlebarsProgram;
     function ParseStatement: THandlebarsStatement;
     procedure UnexpectedToken(Expected: THandlebarsTokens);
   public
@@ -391,8 +395,78 @@ begin
 end;
 
 {
+block
+  : openBlock program inverseChain? closeBlock
+  | openInverse program inverseAndProgram? closeBlock
+  ;
+
+openBlock
+  : OPEN_BLOCK helperName param* hash? blockParams? CLOSE
+  ;
+
+openInverse
+  : OPEN_INVERSE helperName param* hash? blockParams? CLOSE
+  ;
+
+openInverseChain
+  : OPEN_INVERSE_CHAIN helperName param* hash? blockParams? CLOSE
+  ;
+
+inverseAndProgram
+  : INVERSE program
+  ;
+}
+
+function THandlebarsParser.ParseBlock: THandlebarsBlockStatement;
+var
+  OpenName: String;
+  BlockParams: TStringArray;
+begin
+  Result := THandlebarsBlockStatement.Create;
+  FScanner.FetchToken;
+  Result.FPath := ParseExpression(False);
+  ParseParamsAndHash(Result.FParams, Result.FHash);
+  if FScanner.CurToken = tkOpenBlockParams then
+    BlockParams := ParseBlockParams
+  else
+    BlockParams := nil;
+  case Result.FPath.NodeType of
+    'PathExpression':
+      OpenName := THandlebarsPathExpression(Result.FPath).Original;
+    'StringLiteral':
+      OpenName := THandlebarsStringLiteral(Result.FPath).Original;
+    'NumberLiteral':
+      OpenName := FloatToStr(THandlebarsNumberLiteral(Result.FPath).Original);
+    'BooleanLiteral':
+      OpenName := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Result.FPath).Original, True));
+  end;
+  Result.FProgram := ParseProgram([tkOpenEndBlock, tkInverse, tkOpenInverseChain]);
+  Result.FProgram.FBlockParams := BlockParams;
+  if FScanner.CurToken in [tkInverse, tkOpenInverseChain] then
+    Result.FInverse := ParseProgram([tkOpenEndBlock], FScanner.CurToken <> tkOpenInverseChain);
+  ParseCloseBlock(OpenName);
+end;
+
+function THandlebarsParser.ParseBlockParams: TStringArray;
+var
+  ItemCount: Integer;
+begin
+  Result := nil;
+  while FScanner.CurToken = tkId do
+  begin
+    ItemCount := Length(Result);
+    SetLength(Result, ItemCount + 1);
+    Result[ItemCount] := FScanner.CurTokenString;
+  end;
+  if FScanner.CurToken <> tkCloseBlockParams then
+    UnexpectedToken([tkCloseBlockParams]);
+  FScanner.FetchToken;
+end;
+
+
+{
 closeBlock
-  : OPEN_ENDBLOCK helperName CLOSE -> {path: $2, strip: yy.stripFlags($1, $3)}
+  : OPEN_ENDBLOCK helperName CLOSE
   ;
 }
 
@@ -584,7 +658,7 @@ begin
     'BooleanLiteral':
       OpenName := LowerCase(BoolToStr(THandlebarsBooleanLiteral(Result.FName).Original, True));
   end;
-  Result.FProgram := ParseProgram(tkOpenEndBlock);
+  Result.FProgram := ParseProgram([tkOpenEndBlock]);
   ParseCloseBlock(OpenName);
 end;
 
@@ -621,13 +695,16 @@ begin
   until False;
 end;
 
-function THandlebarsParser.ParseProgram(BreakToken: THandlebarsToken): THandlebarsProgram;
+function THandlebarsParser.ParseProgram(BreakTokens: THandlebarsTokens; DoFetchToken: Boolean): THandlebarsProgram;
 var
   T: THandlebarsToken;
 begin
   Result := THandlebarsProgram.Create;
-  T := FScanner.FetchToken;
-  while T <> BreakToken do
+  if DoFetchToken then
+    T := FScanner.FetchToken
+  else
+    T := FScanner.CurToken;
+  while not (T in BreakTokens) do
   begin
     Result.FBody.Add(ParseStatement);
     T := FScanner.FetchToken;
@@ -647,6 +724,8 @@ begin
       Result := ParsePartialBlock;
     tkComment:
       Result := ParseComment;
+    tkOpenBlock, tkOpenInverseChain:
+      Result := ParseBlock;
   else
     UnexpectedToken([tkContent, tkOpen, tkOpenUnescaped, tkOpenPartial, tkOpenPartialBlock, tkComment]);
   end;
@@ -690,7 +769,7 @@ end;
 
 function THandlebarsParser.Parse: THandlebarsProgram;
 begin
-  Result := ParseProgram(tkEOF);
+  Result := ParseProgram([tkEOF]);
 end;
 
 { THandlebarsHash }
@@ -803,6 +882,17 @@ end;
 function THandlebarsBlockStatement.GetParams(Index: Integer): THandlebarsExpression;
 begin
   Result := THandlebarsExpression(FParams[Index]);
+end;
+
+constructor THandlebarsBlockStatement.Create;
+begin
+  FParams := TFPObjectList.Create;
+end;
+
+destructor THandlebarsBlockStatement.Destroy;
+begin
+  FParams.Free;
+  inherited Destroy;
 end;
 
 { THandlebarsMustacheStatement }
