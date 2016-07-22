@@ -680,12 +680,15 @@ begin
   Result.FData := IsData;
   Result.FOriginal := '';
   repeat
-    Result.FOriginal += FScanner.CurTokenString;
     Part := FScanner.CurTokenString;
-    if Part <> 'this' then
-    begin
-      if Part = '..' then
-        Inc(Result.FDepth)
+    case Part of
+      'this', '.', '..':
+        begin
+          if Result.FOriginal <> '' then
+            raise EHandlebarsParse.CreateFmt('Invalid path: %s%s', [Result.FOriginal, Part]);
+          if Part = '..' then
+            Inc(Result.FDepth);
+        end;
       else
       begin
         PartCount := Length(Result.Parts);
@@ -693,6 +696,7 @@ begin
         Result.FParts[PartCount] := Part;
       end;
     end;
+    Result.FOriginal += Part;
     if FScanner.FetchToken = tkSep then
     begin
       Result.FOriginal += FScanner.CurTokenString;
