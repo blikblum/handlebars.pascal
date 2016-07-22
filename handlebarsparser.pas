@@ -426,13 +426,14 @@ begin
   Result := THandlebarsBlockStatement.Create;
   TheProgram := nil;
   InverseProgram := nil;
+  BlockParams := nil;
   FScanner.FetchToken;
   Result.FPath := ParseExpression(False);
+  if FScanner.CurToken = tkOpenBlockParams then
+    BlockParams := ParseBlockParams;
   ParseParamsAndHash(Result.FParams, Result.FHash);
   if FScanner.CurToken = tkOpenBlockParams then
-    BlockParams := ParseBlockParams
-  else
-    BlockParams := nil;
+    BlockParams := ParseBlockParams;
   case Result.FPath.NodeType of
     'PathExpression':
       OpenName := THandlebarsPathExpression(Result.FPath).Original;
@@ -467,11 +468,13 @@ var
   ItemCount: Integer;
 begin
   Result := nil;
+  FScanner.FetchToken;
   while FScanner.CurToken = tkId do
   begin
     ItemCount := Length(Result);
     SetLength(Result, ItemCount + 1);
     Result[ItemCount] := FScanner.CurTokenString;
+    FScanner.FetchToken;
   end;
   if FScanner.CurToken <> tkCloseBlockParams then
     UnexpectedToken([tkCloseBlockParams]);
