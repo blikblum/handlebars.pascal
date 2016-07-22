@@ -57,7 +57,6 @@ type
     function GetParamCount: Integer;
     function GetParams(Index: Integer): THandlebarsExpression;
   public
-    constructor Create(const Expression: String);
     destructor Destroy; override;
     property Hash: THandlebarsHash read FHash;
     property Params[Index: Integer]: THandlebarsExpression read GetParams;
@@ -492,6 +491,7 @@ begin
   else
     CloseName := '';
   end;
+  Expression.Free;
   if CloseName <> OpenName then
     raise EHandlebarsParse.CreateFmt('%s doesn''t match %s', [OpenName, CloseName]);
   if FScanner.CurToken <> tkClose then
@@ -842,6 +842,8 @@ end;
 
 destructor THandlebarsPartialBlockStatement.Destroy;
 begin
+  FName.Free;
+  FHash.Free;
   FParams.Destroy;
   inherited Destroy;
 end;
@@ -866,7 +868,9 @@ end;
 
 destructor THandlebarsPartialStatement.Destroy;
 begin
-  FParams.Destroy;
+  FName.Free;
+  FHash.Free;
+  FParams.Free;
   inherited Destroy;
 end;
 
@@ -889,6 +893,10 @@ end;
 
 destructor THandlebarsBlockStatement.Destroy;
 begin
+  FPath.Free;
+  FHash.Free;
+  FProgram.Free;
+  FInverse.Free;
   FParams.Free;
   inherited Destroy;
 end;
@@ -914,7 +922,7 @@ destructor THandlebarsMustacheStatement.Destroy;
 begin
   FPath.Free;
   FHash.Free;
-  FParams.Destroy;
+  FParams.Free;
   inherited Destroy;
 end;
 
@@ -942,13 +950,10 @@ begin
   Result := THandlebarsExpression(FParams[Index]);
 end;
 
-constructor THandlebarsSubExpression.Create(const Expression: String);
-begin
-
-end;
-
 destructor THandlebarsSubExpression.Destroy;
 begin
+  FPath.Free;
+  FHash.Free;
   inherited Destroy;
 end;
 

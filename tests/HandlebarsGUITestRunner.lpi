@@ -50,6 +50,7 @@
       <Unit1>
         <Filename Value="basictests.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="BasicTests"/>
       </Unit1>
       <Unit2>
         <Filename Value="mustachetests.pas"/>
@@ -78,6 +79,9 @@
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
+      <Debugging>
+        <UseHeaptrc Value="True"/>
+      </Debugging>
       <Options>
         <Win32>
           <GraphicApplication Value="True"/>
@@ -86,7 +90,7 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="4">
+    <Exceptions Count="5">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
@@ -99,6 +103,9 @@
       <Item4>
         <Name Value="ETestFailure"/>
       </Item4>
+      <Item5>
+        <Name Value="EHandlebarsParse"/>
+      </Item5>
     </Exceptions>
   </Debugging>
 </CONFIG>

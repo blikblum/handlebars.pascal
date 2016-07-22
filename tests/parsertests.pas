@@ -238,6 +238,7 @@ begin
   try
     AProgram := Parser.Parse;
     Result := Printer.ProgramToStr(AProgram);
+    AProgram.Free;
   finally
     Parser.Destroy;
   end;
@@ -647,28 +648,33 @@ procedure TParserTests.CheckException(const Template: String; const AExceptionCl
 var
   LExceptionClass: TClass;
   Parser: THandlebarsParser;
+  AProgram: THandlebarsProgram;
 begin
   LExceptionClass := AExceptionClass;
+  Parser := THandlebarsParser.Create(Template);
   try
-    Parser := THandlebarsParser.Create(Template);
-    Parser.Parse.Free;
-    Parser.Destroy;
-  except
-    on E:Exception do
-    begin
-      OnCheckCalled;
-      if not Assigned(LExceptionClass) then
-        raise
-      else if not E.ClassType.InheritsFrom(LExceptionClass) then
-        FailNotEquals(AExceptionClass.ClassName, E.ClassName, ErrorMsg, CallerAddr)
-      else if (ExceptionMsg <> '') and (E.Message <> ExceptionMsg) then
-        FailNotEquals(ExceptionMsg, E.Message, ErrorMsg, CallerAddr)
-      else
-        LExceptionClass := nil;
+    try
+      AProgram := Parser.Parse;
+      AProgram.Free;
+    except
+      on E:Exception do
+      begin
+        OnCheckCalled;
+        if not Assigned(LExceptionClass) then
+          raise
+        else if not E.ClassType.InheritsFrom(LExceptionClass) then
+          FailNotEquals(AExceptionClass.ClassName, E.ClassName, ErrorMsg, CallerAddr)
+        else if (ExceptionMsg <> '') and (E.Message <> ExceptionMsg) then
+          FailNotEquals(ExceptionMsg, E.Message, ErrorMsg, CallerAddr)
+        else
+          LExceptionClass := nil;
+      end;
     end;
+    if Assigned(LExceptionClass) then
+      FailNotEquals(AExceptionClass.ClassName, 'nothing', ErrorMsg, CallerAddr)
+  finally
+    Parser.Free;
   end;
-  if Assigned(LExceptionClass) then
-    FailNotEquals(AExceptionClass.ClassName, 'nothing', ErrorMsg, CallerAddr)
 end;
 
 procedure TParserTests.SimpleMustaches;
