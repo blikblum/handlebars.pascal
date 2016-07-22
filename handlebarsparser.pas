@@ -232,41 +232,17 @@ type
 
   { THandlebarsDecorator }
 
-  THandlebarsDecorator = class(THandlebarsStatement)
+  THandlebarsDecorator = class(THandlebarsMustacheStatement)
   private
-    FPath: THandlebarsExpression; //PathExpression | Literal
-    FParams: TFPObjectList; //[ Expression ];
-    FHash: THandlebarsHash;
-    FStrip: TStripFlags;
-    function GetParamCount: Integer;
-    function GetParams(Index: Integer): THandlebarsExpression;
   public
-    property Hash: THandlebarsHash read FHash;
-    property Params[Index: Integer]: THandlebarsExpression read GetParams;
-    property ParamCount: Integer read GetParamCount;
-    property Path: THandlebarsExpression read FPath;
   end;
 
   { THandlebarsDecoratorBlock }
 
-  THandlebarsDecoratorBlock = class(THandlebarsStatement)
+  THandlebarsDecoratorBlock = class(THandlebarsBlockStatement)
   private
-    FPath: THandlebarsExpression; //PathExpression | Literal
-    FParams: TFPObjectList; //[ Expression ];
-    FHash: THandlebarsHash;
-    FProgram: THandlebarsProgram;
-    FOpenStrip: TStripFlags;
-    FCloseStrip: TStripFlags;
-    function GetParamCount: Integer;
-    function GetParams(Index: Integer): THandlebarsExpression;
   public
-    property Hash: THandlebarsHash read FHash;
-    property Params[Index: Integer]: THandlebarsExpression read GetParams;
-    property ParamCount: Integer read GetParamCount;
-    property Path: THandlebarsExpression read FPath;
-    property TheProgram: THandlebarsProgram read FProgram;
   end;
-
 
   { THandlebarsHashPair }
 
@@ -422,8 +398,13 @@ var
   OpenName: String;
   BlockParams: TStringArray;
   TheProgram, InverseProgram: THandlebarsProgram;
+  IsDecorator: Boolean;
 begin
-  Result := THandlebarsBlockStatement.Create;
+  IsDecorator := Pos('*', FScanner.CurTokenString) > 0;
+  if IsDecorator then
+    Result := THandlebarsDecoratorBlock.Create
+  else
+    Result := THandlebarsBlockStatement.Create;
   TheProgram := nil;
   InverseProgram := nil;
   BlockParams := nil;
@@ -447,7 +428,11 @@ begin
   TheProgram := ParseProgram([tkOpenEndBlock, tkInverse, tkOpenInverseChain]);
   TheProgram.FBlockParams := BlockParams;
   if FScanner.CurToken in [tkInverse, tkOpenInverseChain] then
+  begin
+    if IsDecorator then
+      raise EHandlebarsParse.Create('Unexpected inverse');
     InverseProgram := ParseProgram([tkOpenEndBlock], FScanner.CurToken <> tkOpenInverseChain);
+  end;
 
   if not Inverted then
   begin
@@ -587,8 +572,14 @@ pathSegments
 }
 
 function THandlebarsParser.ParseMustache: THandlebarsMustacheStatement;
+var
+  IsDecorator: Boolean;
 begin
-  Result := THandlebarsMustacheStatement.Create;
+  IsDecorator := Pos('*', FScanner.CurTokenString) > 0;
+  if IsDecorator then
+    Result := THandlebarsDecorator.Create
+  else
+    Result := THandlebarsMustacheStatement.Create;
   FScanner.FetchToken;
   Result.FPath := ParseExpression(False);
   ParseParamsAndHash(Result.FParams, Result.FHash);
@@ -826,30 +817,6 @@ function THandlebarsHash.AddPair(Pair: THandlebarsHashPair): THandlebarsHashPair
 begin
   Result := Pair;
   FPairs.Add(Pair);
-end;
-
-{ THandlebarsDecoratorBlock }
-
-function THandlebarsDecoratorBlock.GetParamCount: Integer;
-begin
-  Result := FParams.Count;
-end;
-
-function THandlebarsDecoratorBlock.GetParams(Index: Integer): THandlebarsExpression;
-begin
-  Result := THandlebarsExpression(FParams[Index]);
-end;
-
-{ THandlebarsDecorator }
-
-function THandlebarsDecorator.GetParamCount: Integer;
-begin
-  Result := FParams.Count;
-end;
-
-function THandlebarsDecorator.GetParams(Index: Integer): THandlebarsExpression;
-begin
-  Result := THandlebarsExpression(FParams[Index]);
 end;
 
 { THandlebarsPartialBlockStatement }
