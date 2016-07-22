@@ -541,9 +541,13 @@ procedure TScannerTests.Directives;
 begin
   CreateTokens('{{#*foo}}content{{/foo}}');
   CheckEquals([tkOPENBLOCK, tkID, tkCLOSE, tkCONTENT, tkOPENENDBLOCK, tkID, tkCLOSE], FTokens.Values);
+  CheckEquals(tkOpenBlock, '{{#*', FTokens[0]);
+  CheckEquals(tkId, 'foo', FTokens[1]);
 
   CreateTokens('{{*foo}}');
   CheckEquals([tkOPEN, tkID, tkCLOSE], FTokens.Values);
+  CheckEquals(tkOpen, '{{*', FTokens[0]);
+  CheckEquals(tkId, 'foo', FTokens[1]);
 end;
 
 procedure TScannerTests.Inverse;

@@ -273,16 +273,18 @@ begin
             '>': Result := tkOpenPartial;
             '#':
               begin
-                if TokenStr[1] = '>' then
-                begin
-                  Result := tkOpenPartialBlock;
-                  Inc(TokenStr);
-                end
-                else
-                  Result := tkOpenBlock;
+                Result := tkOpenBlock;
+                case TokenStr[1] of
+                  '>':
+                    begin
+                      Result := tkOpenPartialBlock;
+                      Inc(TokenStr);
+                    end;
+                   '*': Inc(TokenStr); // directive
+                end;
               end;
             '/': Result := tkOpenEndBlock;
-            '&': Inc(TokenStr);
+            '&', '*': Inc(TokenStr);
             '{': Result := tkOpenUnescaped;
             '^':
               begin
