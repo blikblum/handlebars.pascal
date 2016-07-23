@@ -5,7 +5,7 @@ unit HandlebarsParser;
 interface
 
 uses
-  Classes, SysUtils, contnrs, HandlebarsScanner;
+  Classes, SysUtils, contnrs, HandlebarsScanner, DataContext;
 
 type
   THandlebarsHash = class;
@@ -24,7 +24,7 @@ type
   protected
     function GetNodeType: String;
   public
-    //function GetValue(Context: TJSONData): String; virtual; abstract;
+    function GetText(Context: TDataContext): String; virtual; abstract;
     property NodeType: String read GetNodeType;
   end;
 
@@ -68,7 +68,9 @@ type
 
   THandlebarsLiteral = class(THandlebarsExpression)
   private
+    function GetAsString: String; virtual; abstract;
   public
+    property AsString: String read GetAsString;
   end;
 
   { THandlebarsStringLiteral }
@@ -77,6 +79,7 @@ type
   private
     FValue: String;
     FOriginal: String;
+    function GetAsString: String; override;
   public
     constructor Create(const AValue: String);
     property Value: String read FValue;
@@ -89,6 +92,7 @@ type
   private
     FValue: Boolean;
     FOriginal: Boolean;
+    function GetAsString: String; override;
   public
     constructor Create(const AValue: String);
     property Original: Boolean read FOriginal;
@@ -101,18 +105,25 @@ type
   private
     FValue: Double;
     FOriginal: Double;
+    function GetAsString: String; override;
   public
     constructor Create(const ValueStr: String);
     property Original: Double read FOriginal;
     property Value: Double read FValue;
   end;
 
+  { THandlebarsNullLiteral }
+
   THandlebarsNullLiteral = class(THandlebarsLiteral)
   private
+    function GetAsString: String; override;
   end;
+
+  { THandlebarsUndefinedLiteral }
 
   THandlebarsUndefinedLiteral = class(THandlebarsLiteral)
   private
+    function GetAsString: String; override;
   end;
 
   THandlebarsStatement = class(THandlebarsNode)
@@ -132,6 +143,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    function GetText(Context: TDataContext): String; override;
     property Hash: THandlebarsHash read FHash;
     property Params[Index: Integer]: THandlebarsExpression read GetParams;
     property ParamCount: Integer read GetParamCount;
@@ -215,6 +227,7 @@ type
     FValue: String;
     FOriginal: String;
   public
+    function GetText({%h-}Context: TDataContext): String; override;
     constructor Create(const Value: String);
     property Value: String read FValue;
   end;
@@ -226,6 +239,7 @@ type
     FValue: String;
     FStrip: TStripFlags;
   public
+    function GetText({%h-}Context: TDataContext): String; override;
     property Value: String read FValue;
   end;
 
@@ -282,6 +296,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    function GetText(Context: TDataContext): String; override;
     property BlockParams: TStringArray read FBlockParams;
     property Body[Index: Integer]: THandlebarsStatement read GetBody;
     property BodyCount: Integer read GetBodyCount;
@@ -316,6 +331,28 @@ type
 
 implementation
 
+{ THandlebarsCommentStatement }
+
+function THandlebarsCommentStatement.GetText({%h-}Context: TDataContext): String;
+begin
+  Result := '';
+end;
+
+{ THandlebarsUndefinedLiteral }
+
+function THandlebarsUndefinedLiteral.GetAsString: String;
+begin
+  Result := 'undefined';
+end;
+
+{ THandlebarsNullLiteral }
+
+function THandlebarsNullLiteral.GetAsString: String;
+begin
+  Result := 'null';
+end;
+
+
 { THandlebarsHashPair }
 
 constructor THandlebarsHashPair.Create(const AKey: String; AValue: THandlebarsExpression);
@@ -332,6 +369,11 @@ end;
 
 { THandlebarsBooleanLiteral }
 
+function THandlebarsBooleanLiteral.GetAsString: String;
+begin
+  Result := LowerCase(BoolToStr(FValue, True));
+end;
+
 constructor THandlebarsBooleanLiteral.Create(const AValue: String);
 begin
   FValue := AValue = 'true';
@@ -339,6 +381,11 @@ begin
 end;
 
 { THandlebarsStringLiteral }
+
+function THandlebarsStringLiteral.GetAsString: String;
+begin
+  Result := FValue;
+end;
 
 constructor THandlebarsStringLiteral.Create(const AValue: String);
 begin
@@ -348,6 +395,11 @@ end;
 
 { THandlebarsNumberLiteral }
 
+function THandlebarsNumberLiteral.GetAsString: String;
+begin
+  Result := FloatToStr(FValue);
+end;
+
 constructor THandlebarsNumberLiteral.Create(const ValueStr: String);
 begin
   FValue := StrToFloat(ValueStr);
@@ -355,6 +407,11 @@ begin
 end;
 
 { THandlebarsContentStatement }
+
+function THandlebarsContentStatement.GetText({%h-}Context: TDataContext): String;
+begin
+  Result := FValue;
+end;
 
 constructor THandlebarsContentStatement.Create(const Value: String);
 begin
@@ -509,7 +566,6 @@ begin
   else
     Str := Copy(Str, 4, Length(Str) - 5);
   Result.FValue := Str;
-  FScanner.FetchToken;
 end;
 
 function THandlebarsParser.ParseExpression(AllowSubExpression: Boolean): THandlebarsExpression;
@@ -926,6 +982,14 @@ begin
   inherited Destroy;
 end;
 
+function THandlebarsMustacheStatement.GetText(Context: TDataContext): String;
+begin
+  if FPath is THandlebarsLiteral then
+    Result := Context.ResolvePath([THandlebarsLiteral(FPath).AsString])
+  else
+    Result := Context.ResolvePath(THandlebarsPathExpression(FPath).FParts);
+end;
+
 { THandlebarsNode }
 
 function THandlebarsNode.GetNodeType: String;
@@ -978,6 +1042,15 @@ destructor THandlebarsProgram.Destroy;
 begin
   FBody.Destroy;
   inherited Destroy;
+end;
+
+function THandlebarsProgram.GetText(Context: TDataContext): String;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to BodyCount - 1 do
+    Result += Body[i].GetText(Context);
 end;
 
 end.

@@ -55,6 +55,7 @@
       <Unit2>
         <Filename Value="mustachetests.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="MustacheTests"/>
       </Unit2>
       <Unit3>
         <Filename Value="scannertests.pas"/>

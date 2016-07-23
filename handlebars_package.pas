@@ -8,7 +8,7 @@ unit handlebars_package;
 interface
 
 uses
-  Handlebars, HandlebarsScanner, HandlebarsParser, LazarusPackageIntf;
+  Handlebars, HandlebarsScanner, HandlebarsParser, DataContext, LazarusPackageIntf;
 
 implementation
 
