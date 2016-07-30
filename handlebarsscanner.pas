@@ -62,7 +62,7 @@ type
      function FetchLine: Boolean;
      function GetCurColumn: Integer;
      procedure ScanComment;
-     procedure ScanContent(Offset: Integer = 0);
+     procedure ScanContent(TokenOffset: Integer = 0);
    protected
      procedure Error(const Msg: string);overload;
      procedure Error(const Msg: string; const Args: array of Const);overload;
@@ -157,34 +157,44 @@ begin
   end;
 end;
 
-procedure THandlebarsScanner.ScanContent(Offset: Integer);
+procedure THandlebarsScanner.ScanContent(TokenOffset: Integer);
 var
   TokenStart: PChar;
-  SectionLength: Integer;
+  SectionLength, StrOffset: Integer;
 begin
   TokenStart := TokenStr;
-  Inc(TokenStr, Offset);
+  StrOffset := 0;
+  Inc(TokenStr, TokenOffset);
   while True do
   begin
     Inc(TokenStr);
-    SectionLength := TokenStr - TokenStart;
     if TokenStr[0] = #0 then
     begin
-      if not FetchLine then
+      SectionLength := TokenStr - TokenStart;
+      if FetchLine then
       begin
-        SetLength(FCurTokenString, SectionLength);
-        Move(TokenStart^, FCurTokenString[1], SectionLength);
+        SetLength(FCurTokenString, StrOffset + SectionLength + Length(LineEnding));
+        Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
+        Move(LineEnding[1], FCurTokenString[StrOffset + SectionLength + 1], Length(LineEnding));
+      end
+      else
+      begin
+        SetLength(FCurTokenString, StrOffset + SectionLength);
+        Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
         Break;
       end;
+      TokenStart := TokenStr;
+      Inc(StrOffset, SectionLength + Length(LineEnding));
     end;
     if ((TokenStr[0] = '{') and (TokenStr[1] = '{')) or
       (((TokenStr[0] = '\') and not (TokenStr[-1] = '\')) and (TokenStr[1] = '{') and (TokenStr[2] = '{')) then
     begin
+      SectionLength := TokenStr - TokenStart;
       //escaped escape
       if (TokenStr[0] = '{') and (TokenStr[-1] = '\') then
         Dec(SectionLength);
-      SetLength(FCurTokenString, SectionLength);
-      Move(TokenStart^, FCurTokenString[1], SectionLength);
+      SetLength(FCurTokenString, StrOffset + SectionLength);
+      Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
       Break;
     end;
   end;

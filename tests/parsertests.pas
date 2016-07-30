@@ -43,6 +43,7 @@ type
     procedure PartialBlockWithArguments;
     procedure Comment;
     procedure MultiLineComment;
+    procedure IndentedStandaloneComment;
     procedure InvertSection;
     procedure MultipleInvertSections;
     procedure EmptyBlock;
@@ -836,6 +837,11 @@ end;
 procedure TParserTests.MultiLineComment;
 begin
   CheckEquals('{{! '''+LineEnding+'this is a multi-line comment'+LineEnding+''' }}\n', ASTFor('{{!'+LineEnding+'this is a multi-line comment'+LineEnding+'}}'));
+end;
+
+procedure TParserTests.IndentedStandaloneComment;
+begin
+  CheckEquals('CONTENT[ ''Begin.'+ LineEnding +''' ]\n{{! '' Indented Comment Block! '' }}\nCONTENT[ ''End.'+ LineEnding +''' ]\n', ASTFor('Begin.'+ LineEnding +'  {{! Indented Comment Block! }}'+ LineEnding +'End.'+ LineEnding));
 end;
 
 procedure TParserTests.InvertSection;

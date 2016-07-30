@@ -529,6 +529,12 @@ begin
   CheckEquals([tkComment, tkCONTENT], FTokens.Values);
   CheckEquals(tkComment, '{{! this is {{a}}', FTokens[0]);
   CheckEquals(tkContent, ' content }}', FTokens[1]);
+
+  CreateTokens('Begin.'+ LineEnding +'  {{! Indented Comment Block! }}'+ LineEnding +'End.'+ LineEnding);
+  CheckEquals([tkContent, tkComment, tkContent], FTokens.Values);
+  CheckEquals(tkContent, 'Begin.'+ LineEnding + '  ', FTokens[0]);
+  CheckEquals(tkComment, '{{! Indented Comment Block! }}', FTokens[1]);
+  CheckEquals(tkContent, LineEnding +'End.'+ LineEnding, FTokens[2]);
 end;
 
 procedure TScannerTests.SimpleBlock;
