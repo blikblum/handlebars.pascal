@@ -16,7 +16,7 @@ type
     FProgram: THandlebarsProgram;
     FSource: String;
     procedure DoCompile;
-    procedure SetSource(AValue: String);
+    procedure SetSource(const AValue: String);
   public
     destructor Destroy; override;
     procedure Compile;
@@ -45,7 +45,7 @@ end;
 
 { THandlebarsTemplate }
 
-procedure THandlebarsTemplate.SetSource(AValue: String);
+procedure THandlebarsTemplate.SetSource(const AValue: String);
 begin
   if FSource = AValue then Exit;
   FSource := AValue;
