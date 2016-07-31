@@ -24,7 +24,7 @@ type
   protected
     function GetNodeType: String;
   public
-    function GetText(Context: TDataContext): String; virtual; abstract;
+    function GetText({%H-}Context: TDataContext): String; virtual;
     property NodeType: String read GetNodeType;
   end;
 
@@ -239,7 +239,6 @@ type
     FValue: String;
     FStrip: TStripFlags;
   public
-    function GetText({%h-}Context: TDataContext): String; override;
     property Value: String read FValue;
   end;
 
@@ -330,13 +329,6 @@ type
   end;
 
 implementation
-
-{ THandlebarsCommentStatement }
-
-function THandlebarsCommentStatement.GetText({%h-}Context: TDataContext): String;
-begin
-  Result := '';
-end;
 
 { THandlebarsUndefinedLiteral }
 
@@ -1000,6 +992,11 @@ var
 begin
   TheClassName := ClassName;
   Result := Copy(TheClassName, PrefixOffset, Length(TheClassName));
+end;
+
+function THandlebarsNode.GetText({%H-}Context: TDataContext): String;
+begin
+  Result := '';
 end;
 
 { THandlebarsSubExpression }
