@@ -184,6 +184,7 @@ begin
       end;
       TokenStart := TokenStr;
       Inc(StrOffset, SectionLength + Length(LineEnding));
+      continue;
     end;
     if ((TokenStr[0] = '{') and (TokenStr[1] = '{')) or
       (((TokenStr[0] = '\') and not (TokenStr[-1] = '\')) and (TokenStr[1] = '{') and (TokenStr[2] = '{')) then
@@ -217,9 +218,16 @@ begin
 end;
 
 constructor THandlebarsScanner.Create(const Source: String);
+var
+  L: Integer;
 begin
   FSource := TStringList.Create;
   FSource.Text := Source;
+  //TStringList eats a lineending at string tail
+  //add a workaround until develop a proper solution
+  L := Length(Source);
+  if (L >= Length(LineEnding)) and (CompareByte(Source[L - Length(LineEnding) + 1], LineEnding[1], Length(LineEnding)) = 0) then
+    FSource.Add('');
 end;
 
 destructor THandlebarsScanner.Destroy;

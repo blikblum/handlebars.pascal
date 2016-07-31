@@ -271,9 +271,7 @@ begin
 
   CreateTokens(' foo ' + LineEnding);
   CheckEquals([tkContent], FTokens.Values);
-  //TStringList, used by scanner, eats the tail lineending
-  //for now ignore tail lineending
-  CheckEquals(tkContent, ' foo ' {+ LineEnding}, FTokens[0]);
+  CheckEquals(tkContent, ' foo ' + LineEnding, FTokens[0]);
 
   CreateTokens(LineEnding + ' foo ');
   CheckEquals([tkContent], FTokens.Values);
@@ -552,9 +550,7 @@ begin
   CheckEquals([tkContent, tkComment, tkContent], FTokens.Values);
   CheckEquals(tkContent, 'Begin.'+ LineEnding + '  ', FTokens[0]);
   CheckEquals(tkComment, '{{! Indented Comment Block! }}', FTokens[1]);
-  //TStringList, used by scanner, eats the tail lineending
-  //for now ignore tail lineending
-  CheckEquals(tkContent, LineEnding +'End.'{+ LineEnding}, FTokens[2]);
+  CheckEquals(tkContent, LineEnding +'End.'+ LineEnding, FTokens[2]);
 end;
 
 procedure TScannerTests.SimpleBlock;
