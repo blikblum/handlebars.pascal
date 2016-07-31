@@ -167,7 +167,6 @@ begin
   Inc(TokenStr, TokenOffset);
   while True do
   begin
-    Inc(TokenStr);
     if TokenStr[0] = #0 then
     begin
       SectionLength := TokenStr - TokenStart;
@@ -197,6 +196,7 @@ begin
       Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
       Break;
     end;
+    Inc(TokenStr);
   end;
 end;
 
@@ -258,14 +258,11 @@ var
   C, Escaped: Char;
 begin
   FCurTokenString := '';
-  while (TokenStr = nil) or (TokenStr[0] = #0) do
+  if (TokenStr = nil) and not FetchLine then
   begin
-    if not FetchLine then
-    begin
-      Result := tkEOF;
-      FCurToken := tkEOF;
-      Exit;
-    end;
+    Result := tkEOF;
+    FCurToken := tkEOF;
+    Exit;
   end;
 
   Result := tkInvalid;
@@ -378,10 +375,16 @@ begin
     if FMustacheLevel = 0 then
     begin
       Result := tkContent;
-      if strlcomp(TokenStr, '\{{', 3) = 0 then
+      if (TokenStr[0] = #0) then
+      begin
+         if FCurRow >= FSource.Count then
+          Result := tkEOF
+        else
+          ScanContent;
+      end else if strlcomp(TokenStr, '\{{', 3) = 0 then
       begin
         Inc(TokenStr);
-        ScanContent(1);
+        ScanContent(2);
       end
       else
         ScanContent;
@@ -554,9 +557,14 @@ begin
           Move(TokenStart^, FCurTokenString[StrOffset + 1], SectionLength);
         if Result in [tkString, tkOpenBlockParams] then
           Inc(TokenStr);
-        //rigth trim space
+        //rigth trim space and line break
         while TokenStr[0] = ' ' do
           Inc(TokenStr);
+        while TokenStr[0] = #0 do
+        begin
+          if not FetchLine then
+            Break;
+        end;
       end;
     end;
   end;

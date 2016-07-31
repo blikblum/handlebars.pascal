@@ -46,6 +46,7 @@ type
   published
     procedure EmptyTemplate;
     procedure OnlyContent;
+    procedure MultilineContent;
     //adapted from handlebars.js/spec/tokenizer.js
     procedure SimpleMustache;
     procedure UnescapeWithAmpersand;
@@ -260,6 +261,23 @@ begin
   CreateTokens(' yy ');
   CheckEquals([tkContent], FTokens.Values);
   CheckEquals(tkContent, ' yy ', FTokens[0]);
+end;
+
+procedure TScannerTests.MultilineContent;
+begin
+  CreateTokens(' foo ' + LineEnding + ' bar ');
+  CheckEquals([tkContent], FTokens.Values);
+  CheckEquals(tkContent, ' foo ' + LineEnding + ' bar ', FTokens[0]);
+
+  CreateTokens(' foo ' + LineEnding);
+  CheckEquals([tkContent], FTokens.Values);
+  //TStringList, used by scanner, eats the tail lineending
+  //for now ignore tail lineending
+  CheckEquals(tkContent, ' foo ' {+ LineEnding}, FTokens[0]);
+
+  CreateTokens(LineEnding + ' foo ');
+  CheckEquals([tkContent], FTokens.Values);
+  CheckEquals(tkContent, LineEnding + ' foo ', FTokens[0]);
 end;
 
 procedure TScannerTests.SimpleMustache;
@@ -534,7 +552,9 @@ begin
   CheckEquals([tkContent, tkComment, tkContent], FTokens.Values);
   CheckEquals(tkContent, 'Begin.'+ LineEnding + '  ', FTokens[0]);
   CheckEquals(tkComment, '{{! Indented Comment Block! }}', FTokens[1]);
-  CheckEquals(tkContent, LineEnding +'End.'+ LineEnding, FTokens[2]);
+  //TStringList, used by scanner, eats the tail lineending
+  //for now ignore tail lineending
+  CheckEquals(tkContent, LineEnding +'End.'{+ LineEnding}, FTokens[2]);
 end;
 
 procedure TScannerTests.SimpleBlock;

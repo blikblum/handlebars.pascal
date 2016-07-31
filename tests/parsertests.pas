@@ -841,7 +841,8 @@ end;
 
 procedure TParserTests.IndentedStandaloneComment;
 begin
-  CheckEquals('CONTENT[ ''Begin.'+ LineEnding +''' ]\n{{! '' Indented Comment Block! '' }}\nCONTENT[ ''End.'+ LineEnding +''' ]\n', ASTFor('Begin.'+ LineEnding +'  {{! Indented Comment Block! }}'+ LineEnding +'End.'+ LineEnding));
+  CheckEquals('CONTENT[ ''Begin.'+ LineEnding +''' ]\n{{! '' Indented Comment Block! '' }}\nCONTENT[ ''End.'+ LineEnding +''' ]\n',
+    ASTFor('Begin.'+ LineEnding +'  {{! Indented Comment Block! }}'+ LineEnding +'End.'+ LineEnding));
 end;
 
 procedure TParserTests.InvertSection;
