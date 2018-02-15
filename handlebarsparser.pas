@@ -330,6 +330,9 @@ type
 
 implementation
 
+uses
+  Variants;
+
 { THandlebarsUndefinedLiteral }
 
 function THandlebarsUndefinedLiteral.GetAsString: String;
@@ -977,9 +980,9 @@ end;
 function THandlebarsMustacheStatement.GetText(Context: TDataContext): String;
 begin
   if FPath is THandlebarsLiteral then
-    Result := Context.ResolvePath([THandlebarsLiteral(FPath).AsString])
+    Result := VarToStr(Context.ResolvePath([THandlebarsLiteral(FPath).AsString]))
   else
-    Result := Context.ResolvePath(THandlebarsPathExpression(FPath).FParts);
+    Result := VarToStr(Context.ResolvePath(THandlebarsPathExpression(FPath).FParts));
 end;
 
 { THandlebarsNode }
