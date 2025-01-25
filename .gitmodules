@@ -1,0 +1,3 @@
+[submodule "use/fptest"]
+	path = use/fptest
+	url = git@github.com:graemeg/fptest.git
